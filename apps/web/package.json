@@ -1,0 +1,44 @@
+{
+  "name": "@ledgerai/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ledgerai/accounting": "workspace:*",
+    "@ledgerai/ai-extraction": "workspace:*",
+    "@ledgerai/audit": "workspace:*",
+    "@ledgerai/auth": "workspace:*",
+    "@ledgerai/compliance-gst": "workspace:*",
+    "@ledgerai/compliance-income-tax": "workspace:*",
+    "@ledgerai/compliance-na": "workspace:*",
+    "@ledgerai/config": "workspace:*",
+    "@ledgerai/db": "workspace:*",
+    "@ledgerai/documents": "workspace:*",
+    "@ledgerai/ui": "workspace:*",
+    "lucide-react": "^0.511.0",
+    "next": "^15.3.2",
+    "next-themes": "^0.4.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "recharts": "^2.15.3",
+    "tesseract.js": "^7.0.0",
+    "zod": "^3.25.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}

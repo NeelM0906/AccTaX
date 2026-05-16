@@ -1,0 +1,37 @@
+{
+  "name": "ledgerai-india",
+  "private": true,
+  "version": "0.1.0",
+  "description": "India-first AI accounting and compliance workspace for freelancers, small businesses, and accountants.",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "turbo dev --filter=@ledgerai/web",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:e2e": "playwright test",
+    "format": "prettier --write .",
+    "db:generate": "pnpm --filter @ledgerai/db db:generate",
+    "db:validate": "pnpm --filter @ledgerai/db db:validate",
+    "db:push": "pnpm --filter @ledgerai/db db:push"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.27.0",
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.15.18",
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "eslint": "^9.27.0",
+    "eslint-config-next": "^15.3.2",
+    "eslint-config-prettier": "^10.1.5",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}

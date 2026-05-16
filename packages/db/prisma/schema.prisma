@@ -1,0 +1,1153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  ACCOUNTANT
+  REVIEWER
+  STAFF
+  CLIENT_READONLY
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum BusinessLegalType {
+  INDIVIDUAL
+  PROPRIETORSHIP
+  PARTNERSHIP
+  LLP
+  COMPANY
+}
+
+enum BusinessType {
+  SERVICES
+  TRADING
+  MANUFACTURING
+  MIXED
+  EXPORT
+  PROFESSIONAL
+}
+
+enum GstFilingFrequency {
+  MONTHLY
+  QUARTERLY_QRMP
+}
+
+enum TaxProfileKind {
+  PROFESSIONAL
+  BUSINESS
+  SALARY_PLUS_FREELANCING
+  EXPORT_SERVICES
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  EXTRACTED
+  NEEDS_REVIEW
+  APPROVED
+  POSTED
+  REJECTED
+}
+
+enum DocumentType {
+  SALES_INVOICE
+  PURCHASE_BILL
+  RECEIPT
+  BANK_STATEMENT
+  CREDIT_NOTE
+  DEBIT_NOTE
+  GST_PORTAL_EXPORT
+  UNKNOWN
+}
+
+enum ExtractionStatus {
+  PENDING
+  VALID
+  INVALID
+  NEEDS_REVIEW
+}
+
+enum PartyType {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+enum InvoiceKind {
+  GST_INVOICE
+  BILL_OF_SUPPLY
+  EXPORT_INVOICE
+  PROFORMA
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+enum TransactionKind {
+  SALE
+  PURCHASE
+  RECEIPT
+  PAYMENT
+  JOURNAL
+  BANK
+}
+
+enum TransactionStatus {
+  DRAFT
+  POSTED
+  VOID
+}
+
+enum GstReturnStatus {
+  NOT_STARTED
+  IN_REVIEW
+  READY
+  EXPORTED
+  FILED_EXTERNALLY
+  LOCKED
+}
+
+enum AiRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum AiSuggestionStatus {
+  PENDING
+  ACCEPTED
+  EDITED
+  REJECTED
+  EXPIRED
+}
+
+enum ReviewTaskStatus {
+  OPEN
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum ExportJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Workspace {
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  defaultCurrency    String   @default("INR")
+  currentFinancialYear String @default("FY2026-27")
+  createdById        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([createdById])
+}
+
+model WorkspaceMember {
+  id          String          @id @default(cuid())
+  workspaceId String
+  userId      String?
+  invitedEmail String?
+  role        WorkspaceRole
+  status      MemberStatus    @default(INVITED)
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId, role])
+  @@index([invitedEmail])
+}
+
+model Business {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  name               String
+  legalName          String?
+  legalType          BusinessLegalType
+  pan                String?
+  primaryStateCode   String
+  businessType       BusinessType
+  turnoverEstimate   Decimal?          @db.Decimal(16, 2)
+  preferredInvoiceFormat String?
+  onboardingComplete Boolean           @default(false)
+  createdById        String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([workspaceId])
+  @@index([workspaceId, pan])
+}
+
+model BusinessLocation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  businessId  String
+  label       String
+  stateCode   String
+  address     Json
+  isPrimary   Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, businessId])
+  @@index([workspaceId, stateCode])
+}
+
+model GstRegistration {
+  id                String             @id @default(cuid())
+  workspaceId       String
+  businessId        String
+  gstin             String
+  stateCode         String
+  legalName         String?
+  filingFrequency   GstFilingFrequency @default(MONTHLY)
+  compositionScheme Boolean            @default(false)
+  activeFrom        DateTime?
+  activeTo          DateTime?
+  createdById       String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([workspaceId, gstin])
+  @@index([workspaceId, businessId])
+  @@index([workspaceId, stateCode])
+}
+
+model TaxProfile {
+  id                          String         @id @default(cuid())
+  workspaceId                 String
+  businessId                  String
+  kind                        TaxProfileKind
+  assessmentYear              String         @default("AY2026-27")
+  presumptiveSection          String?
+  cashReceiptsPercent         Decimal?       @db.Decimal(5, 2)
+  optedOutOfNewRegime         Boolean        @default(false)
+  form10IeaRequired           Boolean        @default(false)
+  createdById                 String?
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+
+  @@index([workspaceId, businessId])
+  @@index([workspaceId, assessmentYear])
+}
+
+model Party {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  type            PartyType
+  displayName     String
+  legalName       String?
+  pan             String?
+  email           String?
+  phone           String?
+  billingAddress  Json?
+  shippingAddress Json?
+  notes           String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([workspaceId, type])
+  @@index([workspaceId, displayName])
+  @@index([workspaceId, pan])
+}
+
+model PartyGstin {
+  id          String    @id @default(cuid())
+  workspaceId String
+  partyId     String
+  gstin       String
+  stateCode   String
+  legalName   String?
+  verifiedAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, gstin, partyId])
+  @@index([workspaceId, partyId])
+  @@index([workspaceId, gstin])
+}
+
+model Document {
+  id                  String         @id @default(cuid())
+  workspaceId         String
+  businessId          String?
+  uploadedById        String?
+  status              DocumentStatus @default(UPLOADED)
+  type                DocumentType   @default(UNKNOWN)
+  originalFilename    String
+  mimeType            String
+  sizeBytes           Int
+  storageBucket       String
+  storageKey          String
+  checksumSha256      String?
+  source              String         @default("manual_upload")
+  currentExtractionId String?
+  metadata            Json?
+  createdById         String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, type])
+  @@index([workspaceId, businessId])
+  @@index([workspaceId, createdAt])
+}
+
+model DocumentPage {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  documentId        String
+  pageNumber        Int
+  textContent       String?
+  previewStorageKey String?
+  width             Int?
+  height            Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([documentId, pageNumber])
+  @@index([workspaceId, documentId])
+}
+
+model DocumentExtraction {
+  id             String           @id @default(cuid())
+  workspaceId    String
+  documentId     String
+  aiRunId        String?
+  status         ExtractionStatus @default(PENDING)
+  documentType   DocumentType     @default(UNKNOWN)
+  confidence     Decimal?         @db.Decimal(5, 4)
+  rawOutput      Json?
+  normalizedData Json?
+  validation     Json?
+  reviewerId     String?
+  reviewedAt     DateTime?
+  createdById    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([workspaceId, documentId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, aiRunId])
+}
+
+model DocumentExtractionField {
+  id                String           @id @default(cuid())
+  workspaceId       String
+  extractionId      String
+  fieldPath         String
+  value             Json?
+  confidence        Decimal?         @db.Decimal(5, 4)
+  source            Json?
+  validationStatus  ExtractionStatus @default(PENDING)
+  validationErrors  Json?
+  reviewerValue     Json?
+  correctedById     String?
+  correctedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([workspaceId, extractionId])
+  @@index([workspaceId, fieldPath])
+  @@index([workspaceId, validationStatus])
+}
+
+model DocumentReviewEvent {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  documentId    String
+  extractionId  String?
+  reviewerId    String
+  action        String
+  comment       String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId, documentId])
+  @@index([workspaceId, reviewerId])
+}
+
+model LedgerAccount {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  code           String
+  name           String
+  type           String
+  systemCategory String?
+  parentId       String?
+  isActive       Boolean  @default(true)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([workspaceId, code])
+  @@index([workspaceId, type])
+  @@index([workspaceId, systemCategory])
+}
+
+model BankAccount {
+  id                  String   @id @default(cuid())
+  workspaceId          String
+  businessId           String?
+  bankName             String
+  accountHolder        String?
+  accountNumberMasked  String
+  ifsc                 String?
+  currency             String   @default("INR")
+  createdById          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([workspaceId, businessId])
+  @@index([workspaceId, bankName])
+}
+
+model BankTransaction {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  bankAccountId     String
+  transactionDate   DateTime
+  description       String
+  debit             Decimal? @db.Decimal(16, 2)
+  credit            Decimal? @db.Decimal(16, 2)
+  balance           Decimal? @db.Decimal(16, 2)
+  reference         String?
+  suggestedCategory String?
+  reviewed          Boolean  @default(false)
+  createdById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([workspaceId, bankAccountId])
+  @@index([workspaceId, transactionDate])
+  @@index([workspaceId, reference])
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  workspaceId     String
+  businessId      String
+  partyId         String?
+  documentId      String?
+  kind            InvoiceKind   @default(GST_INVOICE)
+  status          InvoiceStatus @default(DRAFT)
+  invoiceNumber   String
+  invoiceDate     DateTime
+  dueDate         DateTime?
+  sellerGstin     String?
+  buyerGstin      String?
+  sellerStateCode String
+  buyerStateCode  String?
+  placeOfSupply   String?
+  supplyType      String?
+  reverseCharge   Boolean       @default(false)
+  exportType      String?
+  taxableValue    Decimal       @default(0) @db.Decimal(16, 2)
+  cgst            Decimal       @default(0) @db.Decimal(16, 2)
+  sgst            Decimal       @default(0) @db.Decimal(16, 2)
+  igst            Decimal       @default(0) @db.Decimal(16, 2)
+  cess            Decimal       @default(0) @db.Decimal(16, 2)
+  total           Decimal       @default(0) @db.Decimal(16, 2)
+  notes           String?
+  terms           String?
+  issuedAt        DateTime?
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([workspaceId, businessId, invoiceNumber])
+  @@index([workspaceId, status])
+  @@index([workspaceId, partyId])
+  @@index([workspaceId, invoiceDate])
+  @@index([workspaceId, sellerGstin])
+  @@index([workspaceId, buyerGstin])
+}
+
+model InvoiceItem {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  invoiceId     String
+  description   String
+  hsnSac        String?
+  quantity      Decimal  @default(1) @db.Decimal(16, 4)
+  unitPrice     Decimal  @db.Decimal(16, 2)
+  discount      Decimal  @default(0) @db.Decimal(16, 2)
+  taxRate       Decimal  @default(0) @db.Decimal(5, 2)
+  taxableValue  Decimal  @db.Decimal(16, 2)
+  cgst          Decimal  @default(0) @db.Decimal(16, 2)
+  sgst          Decimal  @default(0) @db.Decimal(16, 2)
+  igst          Decimal  @default(0) @db.Decimal(16, 2)
+  cess          Decimal  @default(0) @db.Decimal(16, 2)
+  total         Decimal  @db.Decimal(16, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([workspaceId, invoiceId])
+  @@index([workspaceId, hsnSac])
+}
+
+model Bill {
+  id              String        @id @default(cuid())
+  workspaceId     String
+  businessId      String
+  partyId         String?
+  documentId      String?
+  status          InvoiceStatus @default(DRAFT)
+  billNumber      String
+  billDate        DateTime
+  dueDate         DateTime?
+  sellerGstin     String?
+  buyerGstin      String?
+  placeOfSupply   String?
+  taxableValue    Decimal       @default(0) @db.Decimal(16, 2)
+  cgst            Decimal       @default(0) @db.Decimal(16, 2)
+  sgst            Decimal       @default(0) @db.Decimal(16, 2)
+  igst            Decimal       @default(0) @db.Decimal(16, 2)
+  cess            Decimal       @default(0) @db.Decimal(16, 2)
+  total           Decimal       @default(0) @db.Decimal(16, 2)
+  itcEligible     Boolean       @default(false)
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([workspaceId, businessId, billNumber, partyId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, partyId])
+  @@index([workspaceId, billDate])
+  @@index([workspaceId, sellerGstin])
+}
+
+model BillItem {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  billId        String
+  description   String
+  hsnSac        String?
+  quantity      Decimal  @default(1) @db.Decimal(16, 4)
+  unitPrice     Decimal  @db.Decimal(16, 2)
+  discount      Decimal  @default(0) @db.Decimal(16, 2)
+  taxRate       Decimal  @default(0) @db.Decimal(5, 2)
+  taxableValue  Decimal  @db.Decimal(16, 2)
+  cgst          Decimal  @default(0) @db.Decimal(16, 2)
+  sgst          Decimal  @default(0) @db.Decimal(16, 2)
+  igst          Decimal  @default(0) @db.Decimal(16, 2)
+  cess          Decimal  @default(0) @db.Decimal(16, 2)
+  total         Decimal  @db.Decimal(16, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([workspaceId, billId])
+  @@index([workspaceId, hsnSac])
+}
+
+model Transaction {
+  id                String            @id @default(cuid())
+  workspaceId       String
+  businessId        String?
+  partyId           String?
+  sourceDocumentId  String?
+  invoiceId         String?
+  billId            String?
+  bankTransactionId String?
+  kind              TransactionKind
+  status            TransactionStatus @default(DRAFT)
+  transactionDate   DateTime
+  description       String
+  amount            Decimal           @db.Decimal(16, 2)
+  currency          String            @default("INR")
+  gstTreatment      String?
+  category          String?
+  postedAt          DateTime?
+  createdById       String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([workspaceId, businessId])
+  @@index([workspaceId, partyId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, transactionDate])
+  @@index([workspaceId, gstTreatment])
+  @@index([workspaceId, category])
+}
+
+model TransactionSplit {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  transactionId   String
+  ledgerAccountId String
+  direction        String
+  amount           Decimal  @db.Decimal(16, 2)
+  taxRate          Decimal? @db.Decimal(5, 2)
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([workspaceId, transactionId])
+  @@index([workspaceId, ledgerAccountId])
+}
+
+model PaymentLink {
+  id          String   @id @default(cuid())
+  workspaceId String
+  invoiceId   String?
+  provider    String
+  status      String   @default("draft")
+  url         String?
+  amount      Decimal  @db.Decimal(16, 2)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, invoiceId])
+  @@index([workspaceId, status])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  workspaceId String
+  entityType  String
+  entityId    String
+  filename    String
+  mimeType    String
+  storageKey  String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, entityType, entityId])
+}
+
+model GstReturnPeriod {
+  id                 String          @id @default(cuid())
+  workspaceId        String
+  gstRegistrationId  String
+  periodStart        DateTime
+  periodEnd          DateTime
+  month              Int?
+  quarter            Int?
+  financialYear      String
+  filingFrequency    GstFilingFrequency
+  status             GstReturnStatus @default(NOT_STARTED)
+  lockedAt           DateTime?
+  filedAt            DateTime?
+  createdById        String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([workspaceId, gstRegistrationId, periodStart, periodEnd])
+  @@index([workspaceId, status])
+  @@index([workspaceId, financialYear, month])
+}
+
+model GstReturnDraft {
+  id             String          @id @default(cuid())
+  workspaceId    String
+  returnPeriodId String
+  returnType     String
+  status         GstReturnStatus @default(IN_REVIEW)
+  ruleVersion    String
+  data           Json
+  totals         Json
+  generatedAt    DateTime        @default(now())
+  generatedById  String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([workspaceId, returnPeriodId])
+  @@index([workspaceId, returnType])
+  @@index([workspaceId, status])
+}
+
+model GstReturnLine {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  draftId        String
+  sourceType     String
+  sourceId       String
+  section        String
+  taxableValue   Decimal  @db.Decimal(16, 2)
+  cgst           Decimal  @default(0) @db.Decimal(16, 2)
+  sgst           Decimal  @default(0) @db.Decimal(16, 2)
+  igst           Decimal  @default(0) @db.Decimal(16, 2)
+  cess           Decimal  @default(0) @db.Decimal(16, 2)
+  trace          Json?
+  createdAt      DateTime @default(now())
+
+  @@index([workspaceId, draftId])
+  @@index([workspaceId, sourceType, sourceId])
+}
+
+model GstValidation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  entityType  String
+  entityId    String
+  severity    String
+  code        String
+  message     String
+  metadata    Json?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, entityType, entityId])
+  @@index([workspaceId, severity])
+  @@index([workspaceId, code])
+}
+
+model GstRateRule {
+  id            String   @id @default(cuid())
+  workspaceId   String?
+  hsnSac        String
+  rate          Decimal  @db.Decimal(5, 2)
+  description   String?
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  ruleVersion   String
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([workspaceId, hsnSac])
+  @@index([ruleVersion])
+}
+
+model GstHsnSacCode {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  code        String
+  label       String
+  type        String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, code])
+}
+
+model EInvoiceRequest {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  invoiceId      String
+  provider       String
+  status         String
+  requestPayload Json?
+  responsePayload Json?
+  irn            String?
+  qrCode         String?
+  approvedById   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId, invoiceId])
+  @@index([workspaceId, status])
+}
+
+model EwaybillRequest {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  invoiceId      String?
+  provider       String
+  status         String
+  requestPayload Json?
+  responsePayload Json?
+  ewaybillNumber String?
+  approvedById   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId, invoiceId])
+  @@index([workspaceId, status])
+}
+
+model GstinVerificationLog {
+  id              String   @id @default(cuid())
+  workspaceId      String
+  gstin            String
+  provider         String
+  status           String
+  responsePayload  Json?
+  requestedById    String?
+  createdAt        DateTime @default(now())
+
+  @@index([workspaceId, gstin])
+  @@index([workspaceId, createdAt])
+}
+
+model Gstr2ReconciliationRun {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  gstRegistrationId String
+  periodStart    DateTime
+  periodEnd      DateTime
+  sourceDocumentId String?
+  status         String
+  summary        Json?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId, gstRegistrationId])
+  @@index([workspaceId, periodStart, periodEnd])
+}
+
+model Gstr2ReconciliationItem {
+  id              String   @id @default(cuid())
+  workspaceId      String
+  runId            String
+  internalBillId   String?
+  portalRecord     Json
+  matchStatus      String
+  mismatchReason   String?
+  actionStatus     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([workspaceId, runId])
+  @@index([workspaceId, matchStatus])
+}
+
+model IncomeTaxYear {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  businessId     String
+  assessmentYear String
+  financialYear  String
+  ruleVersion    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([workspaceId, businessId, assessmentYear])
+  @@index([workspaceId, assessmentYear])
+}
+
+model IncomeTaxScenario {
+  id              String   @id @default(cuid())
+  workspaceId      String
+  incomeTaxYearId  String
+  label            String
+  grossIncome      Decimal  @db.Decimal(16, 2)
+  expenses         Decimal  @default(0) @db.Decimal(16, 2)
+  deductions       Decimal  @default(0) @db.Decimal(16, 2)
+  data             Json?
+  createdById      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([workspaceId, incomeTaxYearId])
+}
+
+model PresumptiveTaxCheck {
+  id              String   @id @default(cuid())
+  workspaceId      String
+  scenarioId       String
+  section          String
+  eligible         Boolean
+  threshold        Decimal  @db.Decimal(16, 2)
+  estimatedProfit  Decimal? @db.Decimal(16, 2)
+  reasons          Json
+  ruleVersion      String
+  createdAt        DateTime @default(now())
+
+  @@index([workspaceId, scenarioId])
+  @@index([workspaceId, section])
+}
+
+model TaxRegimeComparison {
+  id               String   @id @default(cuid())
+  workspaceId       String
+  scenarioId        String
+  oldRegimeTax      Decimal  @db.Decimal(16, 2)
+  newRegimeTax      Decimal  @db.Decimal(16, 2)
+  recommendedRegime String
+  ruleVersion       String
+  data              Json?
+  createdAt         DateTime @default(now())
+
+  @@index([workspaceId, scenarioId])
+}
+
+model AdvanceTaxEstimate {
+  id          String   @id @default(cuid())
+  workspaceId String
+  scenarioId  String
+  dueDate     DateTime
+  amount      Decimal  @db.Decimal(16, 2)
+  status      String   @default("planned")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, scenarioId])
+  @@index([workspaceId, dueDate])
+}
+
+model TaxDocumentPack {
+  id          String   @id @default(cuid())
+  workspaceId String
+  scenarioId  String
+  status      String
+  storageKey  String?
+  data        Json?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, scenarioId])
+  @@index([workspaceId, status])
+}
+
+model AiRun {
+  id             String      @id @default(cuid())
+  workspaceId    String
+  provider       String
+  model          String
+  purpose        String
+  status         AiRunStatus @default(QUEUED)
+  input          Json?
+  output         Json?
+  error          String?
+  tokensIn       Int?
+  tokensOut      Int?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdById    String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, purpose])
+}
+
+model AiMessage {
+  id          String   @id @default(cuid())
+  workspaceId String
+  aiRunId     String?
+  role        String
+  content     String
+  citations   Json?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, aiRunId])
+  @@index([workspaceId, createdAt])
+}
+
+model AiSuggestion {
+  id            String             @id @default(cuid())
+  workspaceId   String
+  aiRunId       String?
+  title         String
+  description   String?
+  status        AiSuggestionStatus @default(PENDING)
+  entityType    String?
+  entityId      String?
+  proposedPatch Json?
+  citations     Json?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdById   String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, entityType, entityId])
+}
+
+model AiSuggestionAction {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  suggestionId   String
+  actionType     String
+  actionPayload  Json
+  requiresApproval Boolean @default(true)
+  approvedById   String?
+  approvedAt     DateTime?
+  executedAt     DateTime?
+  rollbackData   Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId, suggestionId])
+  @@index([workspaceId, actionType])
+}
+
+model AutomationRule {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  kind        String
+  enabled     Boolean  @default(true)
+  conditions  Json
+  actions     Json
+  learnedFrom Json?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, kind])
+  @@index([workspaceId, enabled])
+}
+
+model AutomationRun {
+  id          String   @id @default(cuid())
+  workspaceId String
+  ruleId      String
+  status      String
+  input       Json?
+  output      Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, ruleId])
+  @@index([workspaceId, status])
+}
+
+model ReviewTask {
+  id          String           @id @default(cuid())
+  workspaceId String
+  title       String
+  description String?
+  status      ReviewTaskStatus @default(OPEN)
+  entityType  String?
+  entityId    String?
+  dueDate     DateTime?
+  assignedToId String?
+  createdById String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, assignedToId])
+  @@index([workspaceId, dueDate])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String
+  action      String
+  entityType  String
+  entityId    String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, actorId])
+  @@index([workspaceId, entityType, entityId])
+  @@index([workspaceId, action])
+  @@index([workspaceId, createdAt])
+}
+
+model IntegrationAccount {
+  id          String   @id @default(cuid())
+  workspaceId String
+  provider    String
+  label       String
+  status      String
+  scopes      Json?
+  connectedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, provider])
+  @@index([workspaceId, status])
+}
+
+model IntegrationCredential {
+  id          String   @id @default(cuid())
+  workspaceId String
+  integrationAccountId String
+  encryptedPayload String
+  keyVersion  String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, integrationAccountId])
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  provider    String
+  eventType   String
+  payload     Json
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, provider])
+  @@index([provider, eventType])
+}
+
+model ExportJob {
+  id          String          @id @default(cuid())
+  workspaceId String
+  kind        String
+  status      ExportJobStatus @default(QUEUED)
+  parameters  Json?
+  storageKey  String?
+  error       String?
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([workspaceId, kind])
+  @@index([workspaceId, status])
+}
+
+model SystemRuleVersion {
+  id            String   @id @default(cuid())
+  packageName   String
+  version       String
+  jurisdiction  String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  sourceNotes   Json
+  checksum      String?
+  createdAt     DateTime @default(now())
+
+  @@unique([packageName, version])
+  @@index([jurisdiction, effectiveFrom])
+}

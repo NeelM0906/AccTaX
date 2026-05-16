@@ -1,0 +1,14 @@
+node_modules
+.next
+dist
+coverage
+.turbo
+.cache
+.env
+.env.local
+*.log
+*.tsbuildinfo
+packages/db/generated
+uploads
+playwright-report
+test-results
