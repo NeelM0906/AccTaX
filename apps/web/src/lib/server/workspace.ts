@@ -3504,6 +3504,19 @@ function buildAssistantAnswer(input: AssistantAnswerInput) {
     };
   }
 
+  if (/^(hi|hello|hey|yo)\b/.test(normalized)) {
+    return {
+      title: input.project ? "Project context ready" : "Workspace context ready",
+      message: input.project
+        ? `I am using ${input.project.name} as the context for this chat. Ask about its files, transactions, reviews, reports, or upload more documents here.`
+        : "I am using your current accounting workspace as context. Ask about files, transactions, reviews, reports, or upload more documents here.",
+      citations: latestDocument
+        ? [{ label: latestDocument.originalFilename, href: `${base}/vault/${latestDocument.id}` }]
+        : [],
+      nextActions: ["Ask about this project", "Upload documents", "Run a workflow"]
+    };
+  }
+
   if (/(expense|spend|cost|receipt|bill)/.test(normalized)) {
     return {
       title: "Expense status",
@@ -3519,6 +3532,19 @@ function buildAssistantAnswer(input: AssistantAnswerInput) {
         }))
       ],
       nextActions: ["Review expense documents", "Export transactions CSV", "Ask for category breakdown"]
+    };
+  }
+
+  if (/(bank|transaction|categor(?:y|ization)|categorise|categorize|ledger mapping)/.test(normalized)) {
+    return {
+      title: "Bank transaction categorization",
+      message:
+        "Bank rows are categorized from the transaction description, debit or credit direction, known party names, and prior ledger mappings. Anything low-confidence should stay in review until approved, so the project context does not silently change reports or tax outputs.",
+      citations: input.transactions.slice(0, 3).map((transaction) => ({
+        label: transaction.description,
+        href: `${base}/vault#transactions`
+      })),
+      nextActions: ["Review uncategorized rows", "Open tabular review", "Upload a bank statement"]
     };
   }
 

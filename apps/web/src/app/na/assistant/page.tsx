@@ -29,7 +29,7 @@ export default async function NorthAmericaAssistantPage({ searchParams }: Assist
             <div className="mx-auto max-w-3xl text-center">
               <Sparkles className="mx-auto mb-5 size-8 text-zinc-900" />
               <h1 className="text-3xl font-semibold tracking-normal text-zinc-950">
-                {hasQuery ? "Working on your accounting workspace" : `Hi, ${data.project?.name ?? "Maple & Main Studio"}`}
+                {hasQuery ? (data.project ? "Project chat" : "Assistant") : `Hi, ${data.project?.name ?? "Maple & Main Studio"}`}
               </h1>
               {data.project ? (
                 <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600">
@@ -45,17 +45,29 @@ export default async function NorthAmericaAssistantPage({ searchParams }: Assist
                   {q}
                 </div>
                 <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3 text-sm text-zinc-500">
-                    <span>Working...</span>
-                    <span>{data.pendingCount} items in context</span>
-                  </div>
-                  <div className="mt-4 space-y-4 border-l border-zinc-200 pl-4">
-                    <Step done label="Read source records" detail={`${data.documents.length} documents, ${data.transactions.length} recent entries`} />
-                    <Step done label="Applied supervised accounting rules" detail={selectedWorkflow ? selectedWorkflow.title : "Sales tax, 1099, Schedule C, and CPA planning"} />
-                    <Step label={data.answer.title} detail={data.answer.message} />
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white">
+                      <Sparkles className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-base font-semibold text-zinc-950">{data.answer.title}</h2>
+                        {data.project ? (
+                          <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                            Project: {data.project.name}
+                          </span>
+                        ) : null}
+                        {selectedWorkflow ? (
+                          <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                            Workflow: {selectedWorkflow.title}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-zinc-700">{data.answer.message}</p>
+                    </div>
                   </div>
                   {data.answer.citations.length > 0 ? (
-                    <div className="mt-5 flex flex-wrap gap-2">
+                    <div className="mt-5 flex flex-wrap gap-2 pl-11">
                       {data.answer.citations.map((citation) => (
                         <Button key={`${citation.href}-${citation.label}`} variant="secondary" size="sm" asChild>
                           <Link href={citation.href}>{citation.label}</Link>
@@ -63,12 +75,17 @@ export default async function NorthAmericaAssistantPage({ searchParams }: Assist
                       ))}
                     </div>
                   ) : null}
+                  <div className="mt-5 flex flex-wrap gap-3 border-t border-zinc-100 pt-3 pl-11 text-xs text-zinc-400">
+                    <span>{data.documents.length} documents</span>
+                    <span>{data.transactions.length} entries</span>
+                    <span>{data.pendingCount} items needing attention</span>
+                  </div>
                 </div>
               </div>
             ) : null}
 
             <AssistantPrompt
-              q={q ?? ""}
+              q={hasQuery ? "" : q ?? ""}
               returnTo={data.project ? `/na/assistant?project=${data.project.id}` : "/na/vault"}
               askPath="/na/assistant"
               workflowPath="/na/workflows"
@@ -164,7 +181,7 @@ function AssistantPrompt({
         {project ? <input type="hidden" name="project" value={project.id} /> : null}
         {selectedWorkflowId ? <input type="hidden" name="workflow" value={selectedWorkflowId} /> : null}
         {selectedWorkflowTitle ? (
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-600">
             <Workflow className="size-3" />
             {selectedWorkflowTitle}
           </div>
@@ -218,16 +235,6 @@ function AssistantPrompt({
       <div className="mt-3 text-center text-xs text-zinc-400">
         AI can make mistakes. Tax outputs stay draft until reviewed.
       </div>
-    </div>
-  );
-}
-
-function Step({ done, label, detail }: { done?: boolean; label: string; detail: string }) {
-  return (
-    <div className="relative">
-      <div className={`absolute -left-[1.1rem] top-1 size-2 rounded-full ${done ? "bg-emerald-500" : "bg-zinc-300"}`} />
-      <div className="text-sm font-medium text-zinc-900">{label}</div>
-      <div className="mt-1 text-sm leading-6 text-zinc-600">{detail}</div>
     </div>
   );
 }
